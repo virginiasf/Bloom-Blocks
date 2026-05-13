@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom Blocks</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', serif;
+    background: #f5f0e8;
+    color: #2a1f0e;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #2a1f0e;
+    color: #f5f0e8;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    border-bottom: 3px solid #8b5e3c;
+  }
+  header h1 {
+    font-size: 1.25rem;
+    font-weight: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  header span {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    letter-spacing: 0.12em;
+  }
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+  .sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: #ece5d6;
+    border-right: 1px solid #c9b99a;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .section-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8b5e3c;
+    margin-bottom: 0.75rem;
+    font-family: 'Georgia', serif;
+  }
+  .param-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .param-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .param-name {
+    font-size: 0.82rem;
+    color: #4a3520;
+  }
+  .param-value {
+    font-size: 0.82rem;
+    font-weight: bold;
+    color: #2a1f0e;
+    min-width: 52px;
+    text-align: right;
+  }
+  input[type=range] {
+    width: 100%;
+    accent-color: #8b5e3c;
+    cursor: pointer;
+    height: 4px;
+    margin: 2px 0 8px;
+  }
+  .fixed-dims {
+    background: #ddd5c0;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    color: #5a4530;
+    line-height: 1.8;
+    border-left: 3px solid #8b5e3c;
+  }
+  .fixed-dims strong {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8b5e3c;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .export-btn {
+    background: #2a1f0e;
+    color: #f5f0e8;
+    border: none;
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: 'Georgia', serif;
+    cursor: pointer;
+    border-radius: 4px;
+    width: 100%;
+    transition: background 0.2s;
+  }
+  .export-btn:hover { background: #8b5e3c; }
+  .export-btn:active { transform: scale(0.98); }
+  .viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #1a1410;
+  }
+  canvas { display: block; }
+  .controls-hint {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 0.7rem;
+    color: rgba(245,240,232,0.35);
+    text-align: right;
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+  .status-bar {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    font-size: 0.7rem;
+    color: rgba(245,240,232,0.5);
+    letter-spacing: 0.08em;
+    pointer-events: none;
+  }
+  .view-btns {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .view-btn {
+    flex: 1;
+    background: #ddd5c0;
+    border: 1px solid #c9b99a;
+    padding: 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: 'Georgia', serif;
+    cursor: pointer;
+    border-radius: 3px;
+    color: #4a3520;
+    transition: all 0.15s;
+  }
+  .view-btn:hover, .view-btn.active { background: #8b5e3c; color: #f5f0e8; border-color: #8b5e3c; }
+  .divider {
+    height: 1px;
+    background: #c9b99a;
+    margin: 0.25rem 0;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bloom Blocks</h1>
+  <span>3D Print Ready · STL Export</span>
+</header>
+<div class="layout">
+  <div class="sidebar">
+    <div>
+      <div class="section-label">Brick Dimensions</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Width</span>
+          <span class="param-value" id="val-brickWidth">8.000 in</span>
+        </div>
+        <input type="range" id="brickWidth" min="4" max="16" value="8" step="0.125">
+        <div class="param-row">
+          <span class="param-name">Height</span>
+          <span class="param-value" id="val-brickHeight">2.250 in</span>
+        </div>
+        <input type="range" id="brickHeight" min="1" max="6" value="2.25" step="0.125">
+        <div class="param-row">
+          <span class="param-name">Depth</span>
+          <span class="param-value" id="val-brickDepth">3.625 in</span>
+        </div>
+        <input type="range" id="brickDepth" min="1.5" max="8" value="3.625" step="0.125">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Wave Profile</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Number of waves</span>
+          <span class="param-value" id="val-waves">2</span>
+        </div>
+        <input type="range" id="waves" min="1" max="5" value="2" step="1">
+        <div class="param-row">
+          <span class="param-name">Wave amplitude</span>
+          <span class="param-value" id="val-amplitude">0.40 in</span>
+        </div>
+        <input type="range" id="amplitude" min="10" max="80" value="40" step="5">
+        <div class="param-row">
+          <span class="param-name">Wave shape</span>
+          <span class="param-value" id="val-shape">smooth</span>
+        </div>
+        <input type="range" id="shape" min="0" max="100" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Wavy zone</span>
+          <span class="param-value" id="val-wavyZone">100% · all wavy</span>
+        </div>
+        <input type="range" id="wavyZone" min="0" max="100" value="100" step="1">
+        <div class="param-row">
+          <span class="param-name">Flat zone slope</span>
+          <span class="param-value" id="val-flatSlope">0% · vertical</span>
+        </div>
+        <input type="range" id="flatSlope" min="0" max="100" value="0" step="1">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Pocket Extrusion</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Protrusion depth</span>
+          <span class="param-value" id="val-extrusion">2.00 in</span>
+        </div>
+        <input type="range" id="extrusion" min="50" max="300" value="200" step="10">
+        <div class="param-row">
+          <span class="param-name">Pocket depth</span>
+          <span class="param-value" id="val-pocketDepth">1.625 in</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Front Wall Slope</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Slope</span>
+          <span class="param-value" id="val-slope">0% · vertical</span>
+        </div>
+        <input type="range" id="slope" min="0" max="100" value="0" step="1">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Horizontal Pattern</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Amplitude</span>
+          <span class="param-value" id="val-hAmp">0.00 in</span>
+        </div>
+        <input type="range" id="hAmp" min="0" max="60" value="0" step="2">
+        <div class="param-row">
+          <span class="param-name">Number of ridges</span>
+          <span class="param-value" id="val-hCycles">4</span>
+        </div>
+        <input type="range" id="hCycles" min="1" max="30" value="4" step="1">
+        <div class="param-row">
+          <span class="param-name">Ridge stagger</span>
+          <span class="param-value" id="val-hCycleOffset">0°</span>
+        </div>
+        <input type="range" id="hCycleOffset" min="0" max="180" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Gap between ridges</span>
+          <span class="param-value" id="val-hSpacing">0%</span>
+        </div>
+        <input type="range" id="hSpacing" min="0" max="85" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Shift start position</span>
+          <span class="param-value" id="val-hOffset">0°</span>
+        </div>
+        <input type="range" id="hOffset" min="0" max="360" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Wave start</span>
+          <span class="param-value" id="val-hStart">0%</span>
+        </div>
+        <input type="range" id="hStart" min="0" max="95" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Wave end</span>
+          <span class="param-value" id="val-hEnd">100%</span>
+        </div>
+        <input type="range" id="hEnd" min="5" max="100" value="100" step="1">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Vertical Pattern</div>
+      <div class="param-block">
+        <div class="param-row">
+          <span class="param-name">Amplitude</span>
+          <span class="param-value" id="val-vAmp">0.00 in</span>
+        </div>
+        <input type="range" id="vAmp" min="0" max="60" value="0" step="2">
+        <div class="param-row">
+          <span class="param-name">Number of ridges</span>
+          <span class="param-value" id="val-vCycles">4</span>
+        </div>
+        <input type="range" id="vCycles" min="1" max="30" value="4" step="1">
+        <div class="param-row">
+          <span class="param-name">Ridge stagger</span>
+          <span class="param-value" id="val-vCycleOffset">0°</span>
+        </div>
+        <input type="range" id="vCycleOffset" min="0" max="180" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Gap between ridges</span>
+          <span class="param-value" id="val-vSpacing">0%</span>
+        </div>
+        <input type="range" id="vSpacing" min="0" max="85" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Shift start position</span>
+          <span class="param-value" id="val-vOffset">0°</span>
+        </div>
+        <input type="range" id="vOffset" min="0" max="360" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Wave start</span>
+          <span class="param-value" id="val-vStart">0%</span>
+        </div>
+        <input type="range" id="vStart" min="0" max="95" value="0" step="1">
+        <div class="param-row">
+          <span class="param-name">Wave end</span>
+          <span class="param-value" id="val-vEnd">100%</span>
+        </div>
+        <input type="range" id="vEnd" min="5" max="100" value="100" step="1">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">View</div>
+      <div class="view-btns">
+        <button class="view-btn active" onclick="setView('perspective')">3D</button>
+        <button class="view-btn" onclick="setView('front')">Front</button>
+        <button class="view-btn" onclick="setView('side')">Side</button>
+        <button class="view-btn" onclick="setView('top')">Top</button>
+      </div>
+    </div>
+
+    <button class="export-btn" onclick="exportSTL()">⬇ Export STL</button>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <div class="status-bar" id="status">Building geometry…</div>
+    <div class="controls-hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const IN = 25.4; // inches to mm (scene units = mm)
+
+// --- Scene setup ---
+const viewport = document.getElementById('viewport');
+let W = viewport.clientWidth, H = viewport.clientHeight;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+viewport.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1410);
+scene.fog = new THREE.Fog(0x1a1410, 400, 900);
+
+const camera = new THREE.PerspectiveCamera(45, W / H, 0.5, 2000);
+camera.position.set(200, 120, 250);
+
+// Lighting
+const ambient = new THREE.AmbientLight(0xfff3e0, 0.4);
+scene.add(ambient);
+
+const key = new THREE.DirectionalLight(0xffecd2, 1.2);
+key.position.set(150, 200, 100);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1;
+key.shadow.camera.far = 600;
+key.shadow.camera.left = -200;
+key.shadow.camera.right = 200;
+key.shadow.camera.top = 200;
+key.shadow.camera.bottom = -200;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0xc8e6ff, 0.35);
+fill.position.set(-100, 60, -80);
+scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0xfff8e7, 0.5);
+rim.position.set(0, -80, -150);
+scene.add(rim);
+
+// Grid
+const grid = new THREE.GridHelper(500, 20, 0x3a2e20, 0x2e2416);
+grid.position.y = -1;
+scene.add(grid);
+
+// Material
+const mat = new THREE.MeshStandardMaterial({
+  color: 0xd4b896,
+  roughness: 0.75,
+  metalness: 0.02,
+});
+
+// Brick group
+let brickGroup = new THREE.Group();
+scene.add(brickGroup);
+
+// --- Orbit Controls (manual) ---
+let isDragging = false, isRightDrag = false;
+let lastX = 0, lastY = 0;
+let theta = -0.4, phi = 0.85, radius = 370;
+let panX = 0, panY = 0;
+let viewMode = 'perspective';
+
+function updateCamera() {
+  if (viewMode !== 'perspective') return;
+  camera.position.set(
+    panX + radius * Math.sin(phi) * Math.sin(theta),
+    panY + radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(panX, panY, 0);
+}
+updateCamera();
+
+renderer.domElement.addEventListener('mousedown', e => {
+  isDragging = true;
+  isRightDrag = e.button === 2;
+  lastX = e.clientX; lastY = e.clientY;
+  e.preventDefault();
+});
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', e => {
+  if (!isDragging || viewMode !== 'perspective') return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  if (isRightDrag) {
+    panX -= dx * 0.3; panY += dy * 0.3;
+  } else {
+    theta -= dx * 0.007;
+    phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + dy * 0.007));
+  }
+  lastX = e.clientX; lastY = e.clientY;
+  updateCamera();
+});
+renderer.domElement.addEventListener('wheel', e => {
+  if (viewMode !== 'perspective') return;
+  radius = Math.max(80, Math.min(900, radius + e.deltaY * 0.5));
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+function setView(mode) {
+  viewMode = mode;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const bw = parseFloat(document.getElementById('brickWidth').value) * IN;
+  const bh = parseFloat(document.getElementById('brickHeight').value) * IN;
+  const bd = parseFloat(document.getElementById('brickDepth').value) * IN;
+  const cx = 0, cy = bh / 2, cz = 0;
+  if (mode === 'front') {
+    camera.position.set(cx, cy, 400);
+    camera.lookAt(cx, cy, cz);
+  } else if (mode === 'side') {
+    camera.position.set(400, cy, cz);
+    camera.lookAt(cx, cy, cz);
+  } else if (mode === 'top') {
+    camera.position.set(cx, 500, 0.001);
+    camera.lookAt(cx, cy, cz);
+  } else {
+    viewMode = 'perspective';
+    updateCamera();
+  }
+}
+
+// --- Geometry Generation ---
+function getParams() {
+  const nWaves = parseInt(document.getElementById('waves').value);
+  const amplitudeIn = parseInt(document.getElementById('amplitude').value) / 100;
+  const extrusionIn = parseInt(document.getElementById('extrusion').value) / 100;
+  const slopePct   = parseInt(document.getElementById('slope').value) / 100;
+  const shapePct   = parseInt(document.getElementById('shape').value) / 100;
+  const wavyZonePct  = parseInt(document.getElementById('wavyZone').value) / 100;
+  const flatSlopePct = parseInt(document.getElementById('flatSlope').value) / 100;
+  const hAmpIn        = parseInt(document.getElementById('hAmp').value) / 100;
+  const hCycles       = parseInt(document.getElementById('hCycles').value);
+  const hCycleOffset  = parseInt(document.getElementById('hCycleOffset').value);
+  const hSpacing      = parseInt(document.getElementById('hSpacing').value) / 100;
+  const hOffsetDeg    = parseInt(document.getElementById('hOffset').value);
+  const hStartPct     = parseInt(document.getElementById('hStart').value) / 100;
+  const hEndPct       = parseInt(document.getElementById('hEnd').value) / 100;
+  const vAmpIn        = parseInt(document.getElementById('vAmp').value) / 100;
+  const vCycles       = parseInt(document.getElementById('vCycles').value);
+  const vCycleOffset  = parseInt(document.getElementById('vCycleOffset').value);
+  const vSpacing      = parseInt(document.getElementById('vSpacing').value) / 100;
+  const vOffsetDeg    = parseInt(document.getElementById('vOffset').value);
+  const vStartPct     = parseInt(document.getElementById('vStart').value) / 100;
+  const vEndPct       = parseInt(document.getElementById('vEnd').value) / 100;
+
+  const bW = parseFloat(document.getElementById('brickWidth').value) * IN;
+  const bH = parseFloat(document.getElementById('brickHeight').value) * IN;
+  const bD = parseFloat(document.getElementById('brickDepth').value) * IN;
+  const wall = 0.375 * IN;
+  const pExt   = extrusionIn * IN;
+  const pDepth = Math.min(bD - wall, pExt);
+  const amp    = amplitudeIn * IN;
+  const hAmp   = hAmpIn * IN;
+  const vAmp   = vAmpIn * IN;
+
+  return { bW, bH, bD, wall, pExt, pDepth, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
+           hAmp, hCycles, hCycleOffset, hSpacing, hOffsetDeg, hStartPct, hEndPct,
+           vAmp, vCycles, vCycleOffset, vSpacing, vOffsetDeg, vStartPct, vEndPct };
+}
+
+function buildGeometry(p) {
+  const { bW, bH, bD, wall, pExt, pDepth, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
+          hAmp, hCycles, hCycleOffset, hSpacing, hOffsetDeg, hStartPct, hEndPct,
+          vAmp, vCycles, vCycleOffset, vSpacing, vOffsetDeg, vStartPct, vEndPct } = p;
+
+  const vertices = [];
+  const indices = [];
+
+  function addVertex(x, y, z) {
+    vertices.push(x, y, z);
+    return (vertices.length / 3) - 1;
+  }
+
+  function addQuad(a, b, c, d) {
+    indices.push(a, b, c, a, c, d);
+  }
+
+  function quad(v0, v1, v2, v3) {
+    addQuad(addVertex(...v0), addVertex(...v1), addVertex(...v2), addVertex(...v3));
+  }
+
+  const SEGS  = 80;
+  const VSEGS = 60; // raised for smooth horizontal ridges
+
+  const bx0 = -bW/2, bx1 = bW/2;
+  const by0 = 0,     by1 = bH;
+  const bz0 = 0,     bz1 = bD;
+  const px0 = bx0,   px1 = bx1;
+  const py0 = by0,   py1 = by1;
+
+  // waveZ(x): pocket profile wave across width
+  function waveZ(x) {
+    const t = (x - px0) / (px1 - px0);
+    const angle = 2 * Math.PI * nWaves * t;
+    const smooth  = Math.sin(angle);
+    const angular = (2 / Math.PI) * Math.asin(Math.sin(angle));
+    return -(pDepth + amp * (smooth + (angular - smooth) * shapePct));
+  }
+
+  // hRidgeZ(y): horizontal sine ridge displacement at height y.
+  // hCycleOffset shifts the phase of each successive ridge by that many degrees,
+  // so consecutive rows are staggered rather than all having the same cycle shape.
+  function hRidgeZ(y) {
+    if (hAmp === 0) return 0;
+    const hStartY = py0 + (py1 - py0) * hStartPct;
+    const hEndY   = py0 + (py1 - py0) * hEndPct;
+    if (y < hStartY || y > hEndY) return 0;
+    const t = (y - hStartY) / (hEndY - hStartY);   // 0..1 in active band
+
+    // Which cycle index is this y in?
+    const rawCycle  = hCycles * t + hOffsetDeg / 360;
+    const cycleIdx  = Math.floor(rawCycle);         // integer index of this ridge
+    const cyclePhase = rawCycle - cycleIdx;         // 0..1 within this cycle
+
+    // Per-cycle phase offset accumulates: each ridge is shifted by hCycleOffset degrees
+    const perCycleShiftRad = (hCycleOffset * Math.PI / 180) * cycleIdx;
+    const shiftedPhase = ((cyclePhase + perCycleShiftRad / (2 * Math.PI)) % 1 + 1) % 1;
+
+    // Spacing: flat gap at the end of each cycle
+    const activeWidth = 1 - hSpacing;
+    if (activeWidth <= 0 || shiftedPhase > activeWidth) return 0;
+    const remapped = shiftedPhase / activeWidth;    // 0..1 within active portion
+    return hAmp * Math.sin(2 * Math.PI * remapped);
+  }
+
+  // vRidgeZ(x): vertical column ridges running left→right, mirror of hRidgeZ
+  function vRidgeZ(x) {
+    if (vAmp === 0) return 0;
+    const vStartX = px0 + (px1 - px0) * vStartPct;
+    const vEndX   = px0 + (px1 - px0) * vEndPct;
+    if (x < vStartX || x > vEndX) return 0;
+    const t = (x - vStartX) / (vEndX - vStartX);
+
+    const rawCycle   = vCycles * t + vOffsetDeg / 360;
+    const cycleIdx   = Math.floor(rawCycle);
+    const cyclePhase = rawCycle - cycleIdx;
+
+    const perCycleShiftRad = (vCycleOffset * Math.PI / 180) * cycleIdx;
+    const shiftedPhase = ((cyclePhase + perCycleShiftRad / (2 * Math.PI)) % 1 + 1) % 1;
+
+    const activeWidth = 1 - vSpacing;
+    if (activeWidth <= 0 || shiftedPhase > activeWidth) return 0;
+    return vAmp * Math.sin(2 * Math.PI * (shiftedPhase / activeWidth));
+  }
+
+  // surfaceZ(x, y): outer surface of pocket
+  function surfaceZ(x, y) {
+    const vt         = (y - py0) / (py1 - py0);
+    const vertScale  = 1 - slopePct * (1 - vt);
+
+    const xt         = (x - px0) / (px1 - px0);
+    const blendZone  = 0.05;
+    const wavyBlend  = wavyZonePct <= 0 ? 0
+                     : wavyZonePct >= 1 ? 1
+                     : Math.max(0, Math.min(1, (wavyZonePct - xt) / blendZone));
+
+    const seam        = wavyZonePct;
+    const flatWidth   = Math.max(0.0001, 1 - seam);
+    const flatProgress = wavyZonePct >= 1 ? 0
+                       : Math.max(0, Math.min(1, (xt - seam) / flatWidth));
+    const flatZ       = -pDepth * (1 - flatSlopePct * flatProgress);
+
+    const z = wavyBlend * waveZ(x) + (1 - wavyBlend) * flatZ;
+
+    return z * vertScale + hRidgeZ(y) + vRidgeZ(x);
+  }
+
+  // =================================================================
+  // PART 1 — BRICK BODY
+  // =================================================================
+
+  quad([bx0,by0,bz1],[bx1,by0,bz1],[bx1,by1,bz1],[bx0,by1,bz1]); // back
+  quad([bx1,by0,bz0],[bx0,by0,bz0],[bx0,by1,bz0],[bx1,by1,bz0]); // front (solid)
+  quad([bx0,by1,bz0],[bx0,by1,bz1],[bx1,by1,bz1],[bx1,by1,bz0]); // top
+  quad([bx1,by0,bz0],[bx1,by0,bz1],[bx0,by0,bz1],[bx0,by0,bz0]); // bottom
+  quad([bx0,by0,bz0],[bx0,by0,bz1],[bx0,by1,bz1],[bx0,by1,bz0]); // left
+  quad([bx1,by0,bz1],[bx1,by0,bz0],[bx1,by1,bz0],[bx1,by1,bz1]); // right
+
+  // =================================================================
+  // PART 2 — HOLLOW PLANTER POCKET
+  //
+  // Four separate closed manifold solids — slicer unions them:
+  //
+  //  FRONT SHELL: outer surface + inner surface (offset wt in z) +
+  //    4 rim strips = closed floating shell. Provides the wavy front
+  //    wall with thickness wt (~9.5 mm = 3 passes at 3 mm nozzle).
+  //
+  //  LEFT SLAB  : x=[px0, px0+wt], y=[py0,py1], z=[0,−maxD]
+  //  RIGHT SLAB : x=[px1−wt, px1], y=[py0,py1], z=[0,−maxD]
+  //  FLOOR SLAB : x=[px0, px1],    y=[py0, py0+wt], z=[0,−maxD]
+  //
+  //  Each slab is a simple 6-face closed box. maxD = pDepth+amp+hAmp+vAmp+wt
+  //  so the slabs always bridge from the brick face to the deepest wave.
+  //
+  //  Together they enclose the planting cavity:
+  //    Front:  inner surface of shell
+  //    Left/Right: inner faces of left/right slabs
+  //    Bottom: top face of floor slab
+  //    Back:   brick front face (Part 1, z=0)
+  //    Top:    OPEN (plants go in here)
+  //
+  // All normals verified analytically via (b−a)×(c−a).
+  // =================================================================
+
+  const wt   = wall; // ~9.5 mm ≈ 3 passes at 3 mm clay nozzle
+
+  function iSZ(x, y) {
+    const oz = surfaceZ(x, y);
+    return oz + Math.min(wt, -oz * 0.85);
+  }
+
+  const maxD = pDepth + Math.abs(amp) + Math.abs(hAmp) + Math.abs(vAmp) + wt;
+
+  // ── FRONT SHELL: outer surface (−z) ───────────────────────────
+  const oF = [];
+  for (let j = 0; j <= VSEGS; j++) {
+    const y = py0+(py1-py0)*j/VSEGS, row = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const x = px0+(px1-px0)*i/SEGS;
+      row.push(addVertex(x, y, surfaceZ(x, y)));
+    }
+    oF.push(row);
+  }
+  for (let j = 0; j < VSEGS; j++)
+    for (let i = 0; i < SEGS; i++) {
+      const a=oF[j][i],b=oF[j][i+1],c=oF[j+1][i+1],d=oF[j+1][i];
+      indices.push(a,d,c, a,c,b);   // −z ✓
+    }
+
+  // ── FRONT SHELL: inner surface (+z) ───────────────────────────
+  const iF = [];
+  for (let j = 0; j <= VSEGS; j++) {
+    const y = py0+(py1-py0)*j/VSEGS, row = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const x = px0+(px1-px0)*i/SEGS;
+      row.push(addVertex(x, y, iSZ(x, y)));
+    }
+    iF.push(row);
+  }
+  for (let j = 0; j < VSEGS; j++)
+    for (let i = 0; i < SEGS; i++) {
+      const a=iF[j][i],b=iF[j][i+1],c=iF[j+1][i+1],d=iF[j+1][i];
+      indices.push(a,b,c, a,c,d);   // +z ✓
+    }
+
+  // ── FRONT SHELL: 4 rims sealing outer↔inner ───────────────────
+  // top  +y: (iz−oz)*dx>0 ✓
+  for (let i=0;i<SEGS;i++) addQuad(oF[VSEGS][i],iF[VSEGS][i],iF[VSEGS][i+1],oF[VSEGS][i+1]);
+  // bottom −y: dx*(oz′−iz′)<0 ✓
+  for (let i=0;i<SEGS;i++) addQuad(oF[0][i],oF[0][i+1],iF[0][i+1],iF[0][i]);
+  // left  −x: dy*(oz0−iz0)<0 ✓
+  for (let j=0;j<VSEGS;j++) addQuad(oF[j+1][0],oF[j][0],iF[j][0],iF[j+1][0]);
+  // right +x: dy*(iz1−oz1)>0 ✓
+  for (let j=0;j<VSEGS;j++) addQuad(oF[j][SEGS],oF[j+1][SEGS],iF[j+1][SEGS],iF[j][SEGS]);
+
+  // ── LEFT WALL SLAB  x=[px0, px0+wt] ──────────────────────────
+  // Front face follows surfaceZ at x=px0 (outer) and x=px0+wt (inner)
+  for (let j = 0; j < VSEGS; j++) {
+    const y0=py0+(py1-py0)*j/VSEGS, y1=py0+(py1-py0)*(j+1)/VSEGS;
+    const oz0=surfaceZ(px0,y0),    oz1=surfaceZ(px0,y1);    // outer edge z
+    const iz0=surfaceZ(px0+wt,y0), iz1=surfaceZ(px0+wt,y1); // inner edge z
+    // outer face −x: i=dy*oz1<0 ✓
+    addQuad(addVertex(px0,y0,0),   addVertex(px0,y1,0),
+            addVertex(px0,y1,oz1), addVertex(px0,y0,oz0));
+    // inner face +x: i=−iz0*dy>0 ✓
+    addQuad(addVertex(px0+wt,y0,0),  addVertex(px0+wt,y0,iz0),
+            addVertex(px0+wt,y1,iz1),addVertex(px0+wt,y1,0));
+    // front edge: connects outer z to inner z
+    addQuad(addVertex(px0+wt,y0,iz0),addVertex(px0+wt,y1,iz1),
+            addVertex(px0,y1,oz1),   addVertex(px0,y0,oz0));
+    // back face +z: strip at z=0
+    addQuad(addVertex(px0,y0,0),   addVertex(px0+wt,y0,0),
+            addVertex(px0+wt,y1,0), addVertex(px0,y1,0));
+  }
+  // bottom cap of left slab −y
+  { const oz=surfaceZ(px0,py0), iz=surfaceZ(px0+wt,py0);
+    addQuad(addVertex(px0+wt,py0,0),addVertex(px0,py0,0),
+            addVertex(px0,py0,oz),  addVertex(px0+wt,py0,iz)); }
+  // top cap of left slab +y
+  { const oz=surfaceZ(px0,py1), iz=surfaceZ(px0+wt,py1);
+    addQuad(addVertex(px0,py1,0),   addVertex(px0+wt,py1,0),
+            addVertex(px0+wt,py1,iz),addVertex(px0,py1,oz)); }
+
+  // ── RIGHT WALL SLAB  x=[px1−wt, px1] ─────────────────────────
+  for (let j = 0; j < VSEGS; j++) {
+    const y0=py0+(py1-py0)*j/VSEGS, y1=py0+(py1-py0)*(j+1)/VSEGS;
+    const oz0=surfaceZ(px1,y0),    oz1=surfaceZ(px1,y1);
+    const iz0=surfaceZ(px1-wt,y0), iz1=surfaceZ(px1-wt,y1);
+    // outer face +x: i=−oz0*dy>0 ✓
+    addQuad(addVertex(px1,y0,0),   addVertex(px1,y0,oz0),
+            addVertex(px1,y1,oz1), addVertex(px1,y1,0));
+    // inner face −x: i=dy*iz1<0 ✓
+    addQuad(addVertex(px1-wt,y0,0),  addVertex(px1-wt,y1,0),
+            addVertex(px1-wt,y1,iz1),addVertex(px1-wt,y0,iz0));
+    // front edge
+    addQuad(addVertex(px1,y0,oz0),   addVertex(px1,y1,oz1),
+            addVertex(px1-wt,y1,iz1),addVertex(px1-wt,y0,iz0));
+    // back face +z
+    addQuad(addVertex(px1-wt,y0,0),  addVertex(px1,y0,0),
+            addVertex(px1,y1,0),     addVertex(px1-wt,y1,0));
+  }
+  // bottom cap of right slab −y
+  { const oz=surfaceZ(px1,py0), iz=surfaceZ(px1-wt,py0);
+    addQuad(addVertex(px1,py0,0),   addVertex(px1-wt,py0,0),
+            addVertex(px1-wt,py0,iz),addVertex(px1,py0,oz)); }
+  // top cap of right slab +y
+  { const oz=surfaceZ(px1,py1), iz=surfaceZ(px1-wt,py1);
+    addQuad(addVertex(px1-wt,py1,0), addVertex(px1,py1,0),
+            addVertex(px1,py1,oz),   addVertex(px1-wt,py1,iz)); }
+
+  // ── FLOOR SLAB  y=[py0, py0+wt] ───────────────────────────────
+  for (let i = 0; i < SEGS; i++) {
+    const x0=px0+(px1-px0)*i/SEGS, x1=px0+(px1-px0)*(i+1)/SEGS;
+    const oz0=surfaceZ(x0,py0),    oz1=surfaceZ(x1,py0);
+    const iz0=surfaceZ(x0,py0+wt), iz1=surfaceZ(x1,py0+wt);
+    // outer bottom −y: j=dx*oz0<0 ✓
+    addQuad(addVertex(x1,py0,0),   addVertex(x0,py0,0),
+            addVertex(x0,py0,oz0), addVertex(x1,py0,oz1));
+    // inner top +y: j=−dx*iz1>0 ✓
+    addQuad(addVertex(x0,py0+wt,0),   addVertex(x1,py0+wt,0),
+            addVertex(x1,py0+wt,iz1), addVertex(x0,py0+wt,iz0));
+    // front edge −z: k=−wt*dx<0 ✓
+    addQuad(addVertex(x0,py0,oz0),    addVertex(x0,py0+wt,iz0),
+            addVertex(x1,py0+wt,iz1), addVertex(x1,py0,oz1));
+    // back face +z
+    addQuad(addVertex(x0,py0,0),   addVertex(x1,py0,0),
+            addVertex(x1,py0+wt,0),addVertex(x0,py0+wt,0));
+  }
+  // floor slab left end cap −x: i=wt*iz<0 ✓
+  { const oz=surfaceZ(px0,py0), iz=surfaceZ(px0,py0+wt);
+    addQuad(addVertex(px0,py0,0),    addVertex(px0,py0+wt,0),
+            addVertex(px0,py0+wt,iz),addVertex(px0,py0,oz)); }
+  // floor slab right end cap +x: i=−oz*wt>0 ✓
+  { const oz=surfaceZ(px1,py0), iz=surfaceZ(px1,py0+wt);
+    addQuad(addVertex(px1,py0,0),    addVertex(px1,py0,oz),
+            addVertex(px1,py0+wt,iz),addVertex(px1,py0+wt,0)); }
+
+  // TOP IS OPEN — plants go in here
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// --- Render loop ---
+let meshObj = null;
+
+function rebuildMesh() {
+  const p = getParams();
+  const geo = buildGeometry(p);
+
+  if (meshObj) {
+    brickGroup.remove(meshObj);
+    meshObj.geometry.dispose();
+  }
+
+  meshObj = new THREE.Mesh(geo, mat);
+  meshObj.castShadow = true;
+  meshObj.receiveShadow = true;
+
+  // Center brick
+  const bH = p.bH;
+  meshObj.position.set(0, 0, p.bD / 2);
+  brickGroup.add(meshObj);
+
+  // Update info
+  document.getElementById('status').textContent =
+    `${(p.bW/IN).toFixed(3)}" × ${(p.bD/IN).toFixed(3)}" × ${(p.bH/IN).toFixed(3)}" · pocket ${(p.pExt/IN).toFixed(2)}" protrusion`;
+}
+
+function updateSliders() {
+  const bw  = parseFloat(document.getElementById('brickWidth').value);
+  const bh  = parseFloat(document.getElementById('brickHeight').value);
+  const bd  = parseFloat(document.getElementById('brickDepth').value);
+  const nw  = parseInt(document.getElementById('waves').value);
+  const amp = parseInt(document.getElementById('amplitude').value);
+  const ext = parseInt(document.getElementById('extrusion').value);
+  const sl  = parseInt(document.getElementById('slope').value);
+  const sh  = parseInt(document.getElementById('shape').value);
+  const wz  = parseInt(document.getElementById('wavyZone').value);
+  const fs  = parseInt(document.getElementById('flatSlope').value);
+  const ha  = parseInt(document.getElementById('hAmp').value);
+  const hc  = parseInt(document.getElementById('hCycles').value);
+  const hco = parseInt(document.getElementById('hCycleOffset').value);
+  const hsp = parseInt(document.getElementById('hSpacing').value);
+  const ho  = parseInt(document.getElementById('hOffset').value);
+  const hs  = parseInt(document.getElementById('hStart').value);
+  const he  = parseInt(document.getElementById('hEnd').value);
+  const va  = parseInt(document.getElementById('vAmp').value);
+  const vc  = parseInt(document.getElementById('vCycles').value);
+  const vco = parseInt(document.getElementById('vCycleOffset').value);
+  const vsp = parseInt(document.getElementById('vSpacing').value);
+  const vo  = parseInt(document.getElementById('vOffset').value);
+  const vs  = parseInt(document.getElementById('vStart').value);
+  const ve  = parseInt(document.getElementById('vEnd').value);
+
+  document.getElementById('val-brickWidth').textContent  = bw.toFixed(3) + ' in';
+  document.getElementById('val-brickHeight').textContent = bh.toFixed(3) + ' in';
+  document.getElementById('val-brickDepth').textContent  = bd.toFixed(3) + ' in';
+  document.getElementById('val-waves').textContent     = nw;
+  document.getElementById('val-amplitude').textContent = (amp / 100).toFixed(2) + ' in';
+  document.getElementById('val-extrusion').textContent = (ext / 100).toFixed(2) + ' in';
+  document.getElementById('val-pocketDepth').textContent = (ext / 100).toFixed(2) + ' in';
+  document.getElementById('val-slope').textContent =
+    sl === 0 ? '0% · vertical' : sl === 100 ? '100% · scooped' : sl + '%';
+  document.getElementById('val-shape').textContent =
+    sh === 0 ? 'smooth' : sh === 100 ? 'angular' : 'smooth ' + (100-sh) + '/ angular ' + sh;
+  document.getElementById('val-wavyZone').textContent =
+    wz === 100 ? '100% · all wavy' : wz === 0 ? '0% · all flat' : wz + '% wavy ← | → ' + (100-wz) + '% flat';
+  document.getElementById('val-flatSlope').textContent =
+    fs === 0 ? '0% · vertical' : fs === 100 ? '100% · flush' : fs + '%';
+  document.getElementById('val-hAmp').textContent     = (ha / 100).toFixed(2) + ' in';
+  document.getElementById('val-hCycles').textContent      = hc;
+  document.getElementById('val-hCycleOffset').textContent =
+    hco === 0 ? '0° · uniform' : hco === 180 ? '180° · alternating' : hco + '°';
+  document.getElementById('val-hSpacing').textContent = hsp + '%';
+  document.getElementById('val-hOffset').textContent  = ho + '°';
+  document.getElementById('val-hStart').textContent   = hs + '%';
+  document.getElementById('val-hEnd').textContent     = he + '%';
+  document.getElementById('val-vAmp').textContent     = (va / 100).toFixed(2) + ' in';
+  document.getElementById('val-vCycles').textContent      = vc;
+  document.getElementById('val-vCycleOffset').textContent =
+    vco === 0 ? '0° · uniform' : vco === 180 ? '180° · alternating' : vco + '°';
+  document.getElementById('val-vSpacing').textContent = vsp + '%';
+  document.getElementById('val-vOffset').textContent  = vo + '°';
+  document.getElementById('val-vStart').textContent   = vs + '%';
+  document.getElementById('val-vEnd').textContent     = ve + '%';
+
+  rebuildMesh();
+}
+
+['brickWidth','brickHeight','brickDepth',
+ 'waves','amplitude','extrusion','slope','shape','wavyZone','flatSlope',
+ 'hAmp','hCycles','hCycleOffset','hSpacing','hOffset','hStart','hEnd',
+ 'vAmp','vCycles','vCycleOffset','vSpacing','vOffset','vStart','vEnd'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSliders);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  W = viewport.clientWidth; H = viewport.clientHeight;
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+});
+
+// --- STL Export ---
+function exportSTL() {
+  if (!meshObj) return;
+  const geo = meshObj.geometry;
+  const posAttr = geo.attributes.position;
+  const idx = geo.index;
+  const nTris = idx.count / 3;
+
+  const buf = new ArrayBuffer(80 + 4 + nTris * 50);
+  const view = new DataView(buf);
+
+  // Header
+  const header = 'Planter Brick - Virginia San Fratello / Generated by Brick Designer';
+  for (let i = 0; i < 80; i++) {
+    view.setUint8(i, i < header.length ? header.charCodeAt(i) : 0);
+  }
+  view.setUint32(80, nTris, true);
+
+  // Scale from mm to mm (scene is already mm)
+  const scale = 1.0;
+  let offset = 84;
+
+  for (let t = 0; t < nTris; t++) {
+    const i0 = idx.getX(t * 3);
+    const i1 = idx.getX(t * 3 + 1);
+    const i2 = idx.getX(t * 3 + 2);
+
+    const ax = posAttr.getX(i0), ay = posAttr.getY(i0), az = posAttr.getZ(i0);
+    const bx = posAttr.getX(i1), by = posAttr.getY(i1), bz = posAttr.getZ(i1);
+    const cx = posAttr.getX(i2), cy = posAttr.getY(i2), cz = posAttr.getZ(i2);
+
+    // Normal
+    const ux = bx-ax, uy = by-ay, uz = bz-az;
+    const vx = cx-ax, vy = cy-ay, vz = cz-az;
+    let nx = uy*vz - uz*vy;
+    let ny = uz*vx - ux*vz;
+    let nz = ux*vy - uy*vx;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz) || 1;
+    nx/=len; ny/=len; nz/=len;
+
+    view.setFloat32(offset, nx, true); offset+=4;
+    view.setFloat32(offset, ny, true); offset+=4;
+    view.setFloat32(offset, nz, true); offset+=4;
+
+    view.setFloat32(offset, ax*scale, true); offset+=4;
+    view.setFloat32(offset, ay*scale, true); offset+=4;
+    view.setFloat32(offset, az*scale, true); offset+=4;
+
+    view.setFloat32(offset, bx*scale, true); offset+=4;
+    view.setFloat32(offset, by*scale, true); offset+=4;
+    view.setFloat32(offset, bz*scale, true); offset+=4;
+
+    view.setFloat32(offset, cx*scale, true); offset+=4;
+    view.setFloat32(offset, cy*scale, true); offset+=4;
+    view.setFloat32(offset, cz*scale, true); offset+=4;
+
+    view.setUint16(offset, 0, true); offset+=2;
+  }
+
+  const p = getParams();
+  const blob = new Blob([buf], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `planter_brick_${(p.pExt/IN).toFixed1 ? (p.pExt/IN).toFixed(1) : '2.0'}in_${p.nWaves}wave.stl`;
+  a.click();
+}
+
+updateSliders();
+animate();
+</script>
+</body>
+</html>
