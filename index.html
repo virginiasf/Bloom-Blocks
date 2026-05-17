@@ -240,11 +240,7 @@
           <span class="param-name">Protrusion depth</span>
           <span class="param-value" id="val-extrusion">2.00 in</span>
         </div>
-        <input type="range" id="extrusion" min="50" max="300" value="200" step="10">
-        <div class="param-row">
-          <span class="param-name">Pocket depth</span>
-          <span class="param-value" id="val-pocketDepth">1.625 in</span>
-        </div>
+        <input type="range" id="extrusion" min="50" max="500" value="200" step="10">
       </div>
     </div>
 
@@ -524,7 +520,7 @@ function getParams() {
   const bD = parseFloat(document.getElementById('brickDepth').value) * IN;
   const wall = 0.375 * IN;
   const pExt   = extrusionIn * IN;
-  const pDepth = Math.min(bD - wall, pExt);
+  const pDepth = pExt;  // pocket protrudes forward independently of brick depth
   const amp    = amplitudeIn * IN;
   const hAmp   = hAmpIn * IN;
   const vAmp   = vAmpIn * IN;
@@ -638,7 +634,7 @@ function buildGeometry(p) {
 
     const z = wavyBlend * waveZ(x) + (1 - wavyBlend) * flatZ;
 
-    return z * vertScale + hRidgeZ(y) + vRidgeZ(x);
+    return z * vertScale + hRidgeZ(y);
   }
 
   // =================================================================
@@ -693,7 +689,7 @@ function buildGeometry(p) {
     const y = py0+(py1-py0)*j/VSEGS, row = [];
     for (let i = 0; i <= SEGS; i++) {
       const x = px0+(px1-px0)*i/SEGS;
-      row.push(addVertex(x, y, surfaceZ(x, y)));
+      row.push(addVertex(x, y, surfaceZ(x, y) + vRidgeZ(x)));
     }
     oF.push(row);
   }
@@ -878,7 +874,6 @@ function updateSliders() {
   document.getElementById('val-waves').textContent     = nw;
   document.getElementById('val-amplitude').textContent = (amp / 100).toFixed(2) + ' in';
   document.getElementById('val-extrusion').textContent = (ext / 100).toFixed(2) + ' in';
-  document.getElementById('val-pocketDepth').textContent = (ext / 100).toFixed(2) + ' in';
   document.getElementById('val-slope').textContent =
     sl === 0 ? '0% · vertical' : sl === 100 ? '100% · scooped' : sl + '%';
   document.getElementById('val-shape').textContent =
