@@ -184,19 +184,19 @@
       <div class="param-block">
         <div class="param-row">
           <span class="param-name">Width</span>
-          <span class="param-value" id="val-brickWidth">8.000 in</span>
+          <span class="param-value" id="val-brickWidth">200 mm</span>
         </div>
-        <input type="range" id="brickWidth" min="4" max="16" value="8" step="0.125">
+        <input type="range" id="brickWidth" min="100" max="400" value="200" step="5">
         <div class="param-row">
           <span class="param-name">Height</span>
-          <span class="param-value" id="val-brickHeight">2.250 in</span>
+          <span class="param-value" id="val-brickHeight">57 mm</span>
         </div>
-        <input type="range" id="brickHeight" min="1" max="6" value="2.25" step="0.125">
+        <input type="range" id="brickHeight" min="25" max="150" value="57" step="1">
         <div class="param-row">
           <span class="param-name">Depth</span>
-          <span class="param-value" id="val-brickDepth">3.625 in</span>
+          <span class="param-value" id="val-brickDepth">92 mm</span>
         </div>
-        <input type="range" id="brickDepth" min="1.5" max="8" value="3.625" step="0.125">
+        <input type="range" id="brickDepth" min="40" max="200" value="92" step="1">
       </div>
     </div>
 
@@ -212,9 +212,9 @@
         <input type="range" id="waves" min="1" max="5" value="2" step="1">
         <div class="param-row">
           <span class="param-name">Wave amplitude</span>
-          <span class="param-value" id="val-amplitude">0.40 in</span>
+          <span class="param-value" id="val-amplitude">10 mm</span>
         </div>
-        <input type="range" id="amplitude" min="10" max="80" value="40" step="5">
+        <input type="range" id="amplitude" min="2" max="50" value="10" step="1">
         <div class="param-row">
           <span class="param-name">Wave shape</span>
           <span class="param-value" id="val-shape">smooth</span>
@@ -238,9 +238,13 @@
       <div class="param-block">
         <div class="param-row">
           <span class="param-name">Protrusion depth</span>
-          <span class="param-value" id="val-extrusion">2.00 in</span>
+          <span class="param-value" id="val-extrusion">50 mm</span>
         </div>
-        <input type="range" id="extrusion" min="50" max="500" value="200" step="10">
+        <input type="range" id="extrusion" min="10" max="130" value="50" step="1">
+        <div class="param-row">
+          <span class="param-name">Pocket depth</span>
+          <span class="param-value" id="val-pocketDepth">50 mm</span>
+        </div>
       </div>
     </div>
 
@@ -260,9 +264,9 @@
       <div class="param-block">
         <div class="param-row">
           <span class="param-name">Amplitude</span>
-          <span class="param-value" id="val-hAmp">0.00 in</span>
+          <span class="param-value" id="val-hAmp">0 mm</span>
         </div>
-        <input type="range" id="hAmp" min="0" max="60" value="0" step="2">
+        <input type="range" id="hAmp" min="0" max="15" value="0" step="1">
         <div class="param-row">
           <span class="param-name">Number of ridges</span>
           <span class="param-value" id="val-hCycles">4</span>
@@ -301,9 +305,9 @@
       <div class="param-block">
         <div class="param-row">
           <span class="param-name">Amplitude</span>
-          <span class="param-value" id="val-vAmp">0.00 in</span>
+          <span class="param-value" id="val-vAmp">0 mm</span>
         </div>
-        <input type="range" id="vAmp" min="0" max="60" value="0" step="2">
+        <input type="range" id="vAmp" min="0" max="15" value="0" step="1">
         <div class="param-row">
           <span class="param-name">Number of ridges</span>
           <span class="param-value" id="val-vCycles">4</span>
@@ -360,8 +364,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const IN = 25.4; // inches to mm (scene units = mm)
-
 // --- Scene setup ---
 const viewport = document.getElementById('viewport');
 let W = viewport.clientWidth, H = viewport.clientHeight;
@@ -472,9 +474,7 @@ function setView(mode) {
   viewMode = mode;
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
-  const bw = parseFloat(document.getElementById('brickWidth').value) * IN;
-  const bh = parseFloat(document.getElementById('brickHeight').value) * IN;
-  const bd = parseFloat(document.getElementById('brickDepth').value) * IN;
+  const bh = parseFloat(document.getElementById('brickHeight').value);
   const cx = 0, cy = bh / 2, cz = 0;
   if (mode === 'front') {
     camera.position.set(cx, cy, 400);
@@ -494,20 +494,20 @@ function setView(mode) {
 // --- Geometry Generation ---
 function getParams() {
   const nWaves = parseInt(document.getElementById('waves').value);
-  const amplitudeIn = parseInt(document.getElementById('amplitude').value) / 100;
-  const extrusionIn = parseInt(document.getElementById('extrusion').value) / 100;
+  const amp         = parseFloat(document.getElementById('amplitude').value);
+  const pExt        = parseFloat(document.getElementById('extrusion').value);
   const slopePct   = parseInt(document.getElementById('slope').value) / 100;
   const shapePct   = parseInt(document.getElementById('shape').value) / 100;
   const wavyZonePct  = parseInt(document.getElementById('wavyZone').value) / 100;
   const flatSlopePct = parseInt(document.getElementById('flatSlope').value) / 100;
-  const hAmpIn        = parseInt(document.getElementById('hAmp').value) / 100;
+  const hAmp          = parseFloat(document.getElementById('hAmp').value);
   const hCycles       = parseInt(document.getElementById('hCycles').value);
   const hCycleOffset  = parseInt(document.getElementById('hCycleOffset').value);
   const hSpacing      = parseInt(document.getElementById('hSpacing').value) / 100;
   const hOffsetDeg    = parseInt(document.getElementById('hOffset').value);
   const hStartPct     = parseInt(document.getElementById('hStart').value) / 100;
   const hEndPct       = parseInt(document.getElementById('hEnd').value) / 100;
-  const vAmpIn        = parseInt(document.getElementById('vAmp').value) / 100;
+  const vAmp          = parseFloat(document.getElementById('vAmp').value);
   const vCycles       = parseInt(document.getElementById('vCycles').value);
   const vCycleOffset  = parseInt(document.getElementById('vCycleOffset').value);
   const vSpacing      = parseInt(document.getElementById('vSpacing').value) / 100;
@@ -515,15 +515,11 @@ function getParams() {
   const vStartPct     = parseInt(document.getElementById('vStart').value) / 100;
   const vEndPct       = parseInt(document.getElementById('vEnd').value) / 100;
 
-  const bW = parseFloat(document.getElementById('brickWidth').value) * IN;
-  const bH = parseFloat(document.getElementById('brickHeight').value) * IN;
-  const bD = parseFloat(document.getElementById('brickDepth').value) * IN;
-  const wall = 0.375 * IN;
-  const pExt   = extrusionIn * IN;
-  const pDepth = pExt;  // pocket protrudes forward independently of brick depth
-  const amp    = amplitudeIn * IN;
-  const hAmp   = hAmpIn * IN;
-  const vAmp   = vAmpIn * IN;
+  const bW = parseFloat(document.getElementById('brickWidth').value);
+  const bH = parseFloat(document.getElementById('brickHeight').value);
+  const bD = parseFloat(document.getElementById('brickDepth').value);
+  const wall = 9.5;
+  const pDepth = Math.min(bD - wall, pExt);
 
   return { bW, bH, bD, wall, pExt, pDepth, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
            hAmp, hCycles, hCycleOffset, hSpacing, hOffsetDeg, hStartPct, hEndPct,
@@ -634,7 +630,7 @@ function buildGeometry(p) {
 
     const z = wavyBlend * waveZ(x) + (1 - wavyBlend) * flatZ;
 
-    return z * vertScale + hRidgeZ(y);
+    return z * vertScale + hRidgeZ(y) + vRidgeZ(x);
   }
 
   // =================================================================
@@ -689,7 +685,7 @@ function buildGeometry(p) {
     const y = py0+(py1-py0)*j/VSEGS, row = [];
     for (let i = 0; i <= SEGS; i++) {
       const x = px0+(px1-px0)*i/SEGS;
-      row.push(addVertex(x, y, surfaceZ(x, y) + vRidgeZ(x)));
+      row.push(addVertex(x, y, surfaceZ(x, y)));
     }
     oF.push(row);
   }
@@ -839,7 +835,7 @@ function rebuildMesh() {
 
   // Update info
   document.getElementById('status').textContent =
-    `${(p.bW/IN).toFixed(3)}" × ${(p.bD/IN).toFixed(3)}" × ${(p.bH/IN).toFixed(3)}" · pocket ${(p.pExt/IN).toFixed(2)}" protrusion`;
+    `${p.bW.toFixed(0)} × ${p.bD.toFixed(0)} × ${p.bH.toFixed(0)} mm · pocket ${p.pExt.toFixed(0)} mm deep`;
 }
 
 function updateSliders() {
@@ -847,20 +843,20 @@ function updateSliders() {
   const bh  = parseFloat(document.getElementById('brickHeight').value);
   const bd  = parseFloat(document.getElementById('brickDepth').value);
   const nw  = parseInt(document.getElementById('waves').value);
-  const amp = parseInt(document.getElementById('amplitude').value);
-  const ext = parseInt(document.getElementById('extrusion').value);
+  const amp = parseFloat(document.getElementById('amplitude').value);
+  const ext = parseFloat(document.getElementById('extrusion').value);
   const sl  = parseInt(document.getElementById('slope').value);
   const sh  = parseInt(document.getElementById('shape').value);
   const wz  = parseInt(document.getElementById('wavyZone').value);
   const fs  = parseInt(document.getElementById('flatSlope').value);
-  const ha  = parseInt(document.getElementById('hAmp').value);
+  const ha  = parseFloat(document.getElementById('hAmp').value);
   const hc  = parseInt(document.getElementById('hCycles').value);
   const hco = parseInt(document.getElementById('hCycleOffset').value);
   const hsp = parseInt(document.getElementById('hSpacing').value);
   const ho  = parseInt(document.getElementById('hOffset').value);
   const hs  = parseInt(document.getElementById('hStart').value);
   const he  = parseInt(document.getElementById('hEnd').value);
-  const va  = parseInt(document.getElementById('vAmp').value);
+  const va  = parseFloat(document.getElementById('vAmp').value);
   const vc  = parseInt(document.getElementById('vCycles').value);
   const vco = parseInt(document.getElementById('vCycleOffset').value);
   const vsp = parseInt(document.getElementById('vSpacing').value);
@@ -868,12 +864,13 @@ function updateSliders() {
   const vs  = parseInt(document.getElementById('vStart').value);
   const ve  = parseInt(document.getElementById('vEnd').value);
 
-  document.getElementById('val-brickWidth').textContent  = bw.toFixed(3) + ' in';
-  document.getElementById('val-brickHeight').textContent = bh.toFixed(3) + ' in';
-  document.getElementById('val-brickDepth').textContent  = bd.toFixed(3) + ' in';
+  document.getElementById('val-brickWidth').textContent  = bw + ' mm';
+  document.getElementById('val-brickHeight').textContent = bh + ' mm';
+  document.getElementById('val-brickDepth').textContent  = bd + ' mm';
   document.getElementById('val-waves').textContent     = nw;
-  document.getElementById('val-amplitude').textContent = (amp / 100).toFixed(2) + ' in';
-  document.getElementById('val-extrusion').textContent = (ext / 100).toFixed(2) + ' in';
+  document.getElementById('val-amplitude').textContent = amp + ' mm';
+  document.getElementById('val-extrusion').textContent = ext + ' mm';
+  document.getElementById('val-pocketDepth').textContent = Math.min(bd - 9.5, ext).toFixed(0) + ' mm';
   document.getElementById('val-slope').textContent =
     sl === 0 ? '0% · vertical' : sl === 100 ? '100% · scooped' : sl + '%';
   document.getElementById('val-shape').textContent =
@@ -882,7 +879,7 @@ function updateSliders() {
     wz === 100 ? '100% · all wavy' : wz === 0 ? '0% · all flat' : wz + '% wavy ← | → ' + (100-wz) + '% flat';
   document.getElementById('val-flatSlope').textContent =
     fs === 0 ? '0% · vertical' : fs === 100 ? '100% · flush' : fs + '%';
-  document.getElementById('val-hAmp').textContent     = (ha / 100).toFixed(2) + ' in';
+  document.getElementById('val-hAmp').textContent     = ha + ' mm';
   document.getElementById('val-hCycles').textContent      = hc;
   document.getElementById('val-hCycleOffset').textContent =
     hco === 0 ? '0° · uniform' : hco === 180 ? '180° · alternating' : hco + '°';
@@ -890,7 +887,7 @@ function updateSliders() {
   document.getElementById('val-hOffset').textContent  = ho + '°';
   document.getElementById('val-hStart').textContent   = hs + '%';
   document.getElementById('val-hEnd').textContent     = he + '%';
-  document.getElementById('val-vAmp').textContent     = (va / 100).toFixed(2) + ' in';
+  document.getElementById('val-vAmp').textContent     = va + ' mm';
   document.getElementById('val-vCycles').textContent      = vc;
   document.getElementById('val-vCycleOffset').textContent =
     vco === 0 ? '0° · uniform' : vco === 180 ? '180° · alternating' : vco + '°';
@@ -984,7 +981,7 @@ function exportSTL() {
   const blob = new Blob([buf], { type: 'application/octet-stream' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `planter_brick_${(p.pExt/IN).toFixed1 ? (p.pExt/IN).toFixed(1) : '2.0'}in_${p.nWaves}wave.stl`;
+  a.download = `bloom_block_${p.bW.toFixed(0)}x${p.bH.toFixed(0)}mm.stl`;
   a.click();
 }
 
