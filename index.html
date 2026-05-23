@@ -180,6 +180,16 @@
 <div class="layout">
   <div class="sidebar">
     <div>
+      <div class="section-label">Block Shape</div>
+      <div class="view-btns">
+        <button class="view-btn shape-btn active" data-shape="rectangle">Rect</button>
+        <button class="view-btn shape-btn" data-shape="hexagon">Hexagon</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
       <div class="section-label">Brick Dimensions</div>
       <div class="param-block">
         <div class="param-row">
@@ -234,17 +244,13 @@
     </div>
 
     <div>
-      <div class="section-label">Pocket Extrusion</div>
+      <div class="section-label">Pocket Depth</div>
       <div class="param-block">
-        <div class="param-row">
-          <span class="param-name">Protrusion depth</span>
-          <span class="param-value" id="val-extrusion">50 mm</span>
-        </div>
-        <input type="range" id="extrusion" min="10" max="130" value="50" step="1">
         <div class="param-row">
           <span class="param-name">Pocket depth</span>
           <span class="param-value" id="val-pocketDepth">50 mm</span>
         </div>
+        <input type="range" id="pocketDepth" min="10" max="180" value="50" step="1">
       </div>
     </div>
 
@@ -495,7 +501,6 @@ function setView(mode) {
 function getParams() {
   const nWaves = parseInt(document.getElementById('waves').value);
   const amp         = parseFloat(document.getElementById('amplitude').value);
-  const pExt        = parseFloat(document.getElementById('extrusion').value);
   const slopePct   = parseInt(document.getElementById('slope').value) / 100;
   const shapePct   = parseInt(document.getElementById('shape').value) / 100;
   const wavyZonePct  = parseInt(document.getElementById('wavyZone').value) / 100;
@@ -519,15 +524,16 @@ function getParams() {
   const bH = parseFloat(document.getElementById('brickHeight').value);
   const bD = parseFloat(document.getElementById('brickDepth').value);
   const wall = 9.5;
-  const pDepth = Math.min(bD - wall, pExt);
+  const pDepth = parseFloat(document.getElementById('pocketDepth').value);
+  const blockShape = (document.querySelector('.shape-btn.active') || {dataset:{shape:'rectangle'}}).dataset.shape;
 
-  return { bW, bH, bD, wall, pExt, pDepth, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
+  return { bW, bH, bD, wall, pDepth, blockShape, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
            hAmp, hCycles, hCycleOffset, hSpacing, hOffsetDeg, hStartPct, hEndPct,
            vAmp, vCycles, vCycleOffset, vSpacing, vOffsetDeg, vStartPct, vEndPct };
 }
 
 function buildGeometry(p) {
-  const { bW, bH, bD, wall, pExt, pDepth, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
+  const { bW, bH, bD, wall, pDepth, blockShape, amp, nWaves, slopePct, shapePct, wavyZonePct, flatSlopePct,
           hAmp, hCycles, hCycleOffset, hSpacing, hOffsetDeg, hStartPct, hEndPct,
           vAmp, vCycles, vCycleOffset, vSpacing, vOffsetDeg, vStartPct, vEndPct } = p;
 
@@ -553,10 +559,11 @@ function buildGeometry(p) {
   const bx0 = -bW/2, bx1 = bW/2;
   const by0 = 0,     by1 = bH;
   const bz0 = 0,     bz1 = bD;
-  const px0 = bx0,   px1 = bx1;
-  const py0 = by0,   py1 = by1;
+  const px0 = (blockShape === 'hexagon') ? -bW/4 : bx0;
+  const px1 = (blockShape === 'hexagon') ? bW/4  : bx1;
+  const py0 = by0, py1 = by1;
 
-  // waveZ(x): pocket profile wave across width
+  // waveZ(x): pocket profile wave across width — uses pExt as the wave baseline depth
   function waveZ(x) {
     const t = (x - px0) / (px1 - px0);
     const angle = 2 * Math.PI * nWaves * t;
@@ -627,7 +634,6 @@ function buildGeometry(p) {
     const flatProgress = wavyZonePct >= 1 ? 0
                        : Math.max(0, Math.min(1, (xt - seam) / flatWidth));
     const flatZ       = -pDepth * (1 - flatSlopePct * flatProgress);
-
     const z = wavyBlend * waveZ(x) + (1 - wavyBlend) * flatZ;
 
     return z * vertScale + hRidgeZ(y) + vRidgeZ(x);
@@ -637,40 +643,66 @@ function buildGeometry(p) {
   // PART 1 — BRICK BODY
   // =================================================================
 
-  quad([bx0,by0,bz1],[bx1,by0,bz1],[bx1,by1,bz1],[bx0,by1,bz1]); // back
-  quad([bx1,by0,bz0],[bx0,by0,bz0],[bx0,by1,bz0],[bx1,by1,bz0]); // front (solid)
-  quad([bx0,by1,bz0],[bx0,by1,bz1],[bx1,by1,bz1],[bx1,by1,bz0]); // top
-  quad([bx1,by0,bz0],[bx1,by0,bz1],[bx0,by0,bz1],[bx0,by0,bz0]); // bottom
-  quad([bx0,by0,bz0],[bx0,by0,bz1],[bx0,by1,bz1],[bx0,by1,bz0]); // left
-  quad([bx1,by0,bz1],[bx1,by0,bz0],[bx1,by1,bz0],[bx1,by1,bz1]); // right
-
   // =================================================================
-  // PART 2 — HOLLOW PLANTER POCKET
-  //
-  // Four separate closed manifold solids — slicer unions them:
-  //
-  //  FRONT SHELL: outer surface + inner surface (offset wt in z) +
-  //    4 rim strips = closed floating shell. Provides the wavy front
-  //    wall with thickness wt (~9.5 mm = 3 passes at 3 mm nozzle).
-  //
-  //  LEFT SLAB  : x=[px0, px0+wt], y=[py0,py1], z=[0,−maxD]
-  //  RIGHT SLAB : x=[px1−wt, px1], y=[py0,py1], z=[0,−maxD]
-  //  FLOOR SLAB : x=[px0, px1],    y=[py0, py0+wt], z=[0,−maxD]
-  //
-  //  Each slab is a simple 6-face closed box. maxD = pDepth+amp+hAmp+vAmp+wt
-  //  so the slabs always bridge from the brick face to the deepest wave.
-  //
-  //  Together they enclose the planting cavity:
-  //    Front:  inner surface of shell
-  //    Left/Right: inner faces of left/right slabs
-  //    Bottom: top face of floor slab
-  //    Back:   brick front face (Part 1, z=0)
-  //    Top:    OPEN (plants go in here)
-  //
-  // All normals verified analytically via (b−a)×(c−a).
+  // PART 1 — BRICK BODY (front-elevation cross-section extruded in z)
   // =================================================================
 
-  const wt   = wall; // ~9.5 mm ≈ 3 passes at 3 mm clay nozzle
+  function addTri(x0,y0,z0, x1,y1,z1, x2,y2,z2) {
+    indices.push(addVertex(x0,y0,z0), addVertex(x1,y1,z1), addVertex(x2,y2,z2));
+  }
+
+  // Cross-section polygon (x, y) — CCW when viewed from the front (−z).
+  // Rectangle: full bW × bH.
+  // Triangle:  isoceles, base = bW, apex at top-center.
+  // Hexagon:   flat-bottom honeycomb cell, spans bW wide × bH tall.
+  //            At bH ≈ 0.866 × bW it is a perfect regular hexagon.
+  let cp;
+  if (blockShape === 'hexagon') {
+    cp = [[-bW/4, 0], [bW/4, 0], [bW/2, bH/2], [bW/4, bH], [-bW/4, bH], [-bW/2, bH/2]];
+  } else {
+    cp = [[-bW/2, 0], [bW/2, 0], [bW/2, bH], [-bW/2, bH]]; // rectangle
+  }
+  const cpN = cp.length;
+
+  // Front face (z=0, normal −z): reversed CCW fan
+  for (let i = 1; i < cpN - 1; i++) {
+    addTri(cp[0][0], cp[0][1], 0,
+           cp[i+1][0], cp[i+1][1], 0,
+           cp[i][0], cp[i][1], 0);
+  }
+
+  // Back face (z=bD, normal +z): CCW fan
+  for (let i = 1; i < cpN - 1; i++) {
+    addTri(cp[0][0], cp[0][1], bD,
+           cp[i][0], cp[i][1], bD,
+           cp[i+1][0], cp[i+1][1], bD);
+  }
+
+  // Side walls: extrude each edge in z
+  for (let i = 0; i < cpN; i++) {
+    const [x0, y0] = cp[i];
+    const [x1, y1] = cp[(i + 1) % cpN];
+    quad([x0,y0,0], [x1,y1,0], [x1,y1,bD], [x0,y0,bD]);
+  }
+
+  // =================================================================
+  // =================================================================
+  // PART 2 — HOLLOW PLANTER POCKET (shape-aware)
+  //
+  //  FRONT SHELL: scanline-bounded outer+inner surface matching the
+  //    cp polygon outline, sealed with rim strips on all 4 sides.
+  //
+  //  EDGE SLABS: one structural wall slab per polygon edge (except the
+  //    open top edge). Each slab follows the edge direction and the
+  //    wavy surface profile.
+  //
+  //  "Open" edge per shape:
+  //    Rectangle → edge 2 (top)
+  //    Hexagon   → edge 3 (top)
+  //    Triangle  → none (cavity sealed at apex, plants access via front)
+  // =================================================================
+
+  const wt = wall;
 
   function iSZ(x, y) {
     const oz = surfaceZ(x, y);
@@ -679,131 +711,94 @@ function buildGeometry(p) {
 
   const maxD = pDepth + Math.abs(amp) + Math.abs(hAmp) + Math.abs(vAmp) + wt;
 
-  // ── FRONT SHELL: outer surface (−z) ───────────────────────────
-  const oF = [];
+  // ── Scanline: left/right x-bounds of cp polygon at height y ──
+  function getXBounds(y) {
+    const xs = [];
+    for (let k = 0; k < cpN; k++) {
+      const [x0, y0] = cp[k], [x1, y1] = cp[(k+1)%cpN];
+      if (y0 === y1) continue;
+      const t = (y - y0) / (y1 - y0);
+      if (t < 0 || t > 1) continue;
+      xs.push(x0 + t*(x1-x0));
+    }
+    if (!xs.length) {
+      const vx = cp.filter(([,yv]) => Math.abs(yv-y) < 1e-4).map(([x]) => x);
+      return vx.length ? [Math.min(...vx), Math.max(...vx)] : [0, 0];
+    }
+    return [Math.min(...xs), Math.max(...xs)];
+  }
+
+  // ── FRONT SHELL: outer + inner surface ───────────────────────
+  const oF = [], iF = [];
   for (let j = 0; j <= VSEGS; j++) {
-    const y = py0+(py1-py0)*j/VSEGS, row = [];
+    const y = py0 + (py1-py0)*j/VSEGS;
+    const [xL, xR] = getXBounds(y);
+    const rowO = [], rowI = [];
     for (let i = 0; i <= SEGS; i++) {
-      const x = px0+(px1-px0)*i/SEGS;
-      row.push(addVertex(x, y, surfaceZ(x, y)));
+      const x = Math.abs(xR-xL) < 1e-6 ? xL : xL + (xR-xL)*i/SEGS;
+      rowO.push(addVertex(x, y, surfaceZ(x, y)));
+      rowI.push(addVertex(x, y, iSZ(x, y)));
     }
-    oF.push(row);
+    oF.push(rowO); iF.push(rowI);
   }
-  for (let j = 0; j < VSEGS; j++)
-    for (let i = 0; i < SEGS; i++) {
-      const a=oF[j][i],b=oF[j][i+1],c=oF[j+1][i+1],d=oF[j+1][i];
-      indices.push(a,d,c, a,c,b);   // −z ✓
+  // outer surface (−z)
+  for (let j=0;j<VSEGS;j++) for (let i=0;i<SEGS;i++) {
+    const a=oF[j][i],b=oF[j][i+1],c=oF[j+1][i+1],d=oF[j+1][i];
+    indices.push(a,d,c, a,c,b);
+  }
+  // inner surface (+z)
+  for (let j=0;j<VSEGS;j++) for (let i=0;i<SEGS;i++) {
+    const a=iF[j][i],b=iF[j][i+1],c=iF[j+1][i+1],d=iF[j+1][i];
+    indices.push(a,b,c, a,c,d);
+  }
+  // rim strips sealing outer↔inner
+  for (let i=0;i<SEGS;i++) addQuad(oF[0][i],oF[0][i+1],iF[0][i+1],iF[0][i]);         // bottom −y
+  for (let i=0;i<SEGS;i++) addQuad(oF[VSEGS][i],iF[VSEGS][i],iF[VSEGS][i+1],oF[VSEGS][i+1]); // top +y
+  for (let j=0;j<VSEGS;j++) addQuad(oF[j+1][0],oF[j][0],iF[j][0],iF[j+1][0]);        // left −x
+  for (let j=0;j<VSEGS;j++) addQuad(oF[j][SEGS],oF[j+1][SEGS],iF[j+1][SEGS],iF[j][SEGS]); // right +x
+
+  // ── EDGE SLABS: one per closed polygon edge ───────────────────
+  // Open (no slab): rectangle→edge 2 (top), hexagon→edge 3 (top), triangle→none
+  const openEdge = blockShape==='hexagon' ? 3 : 2; // top edge is open for plants
+
+  function buildEdgeSlab(ex0, ey0, ex1, ey1) {
+    const el = Math.hypot(ex1-ex0, ey1-ey0);
+    const nx = -(ey1-ey0)/el, ny = (ex1-ex0)/el; // inward normal
+    const N  = Math.max(4, Math.round(SEGS * el / bW));
+    for (let k=0; k<N; k++) {
+      const t0=k/N, t1=(k+1)/N;
+      const ox0=ex0+(ex1-ex0)*t0, oy0=ey0+(ey1-ey0)*t0;
+      const ox1=ex0+(ex1-ex0)*t1, oy1=ey0+(ey1-ey0)*t1;
+      const ix0=ox0+nx*wt, iy0=oy0+ny*wt;
+      const ix1=ox1+nx*wt, iy1=oy1+ny*wt;
+      const oz0=surfaceZ(ox0,oy0), oz1=surfaceZ(ox1,oy1);
+      const iz0=surfaceZ(ix0,iy0), iz1=surfaceZ(ix1,iy1);
+      // outer face (faces away from cavity, normal = outward)
+      addQuad(addVertex(ox1,oy1,0), addVertex(ox0,oy0,0), addVertex(ox0,oy0,oz0), addVertex(ox1,oy1,oz1));
+      // inner face (faces into cavity)
+      addQuad(addVertex(ix0,iy0,0), addVertex(ix1,iy1,0), addVertex(ix1,iy1,iz1), addVertex(ix0,iy0,iz0));
+      // front face (connects outer to inner at wave surface)
+      addQuad(addVertex(ox0,oy0,oz0), addVertex(ox1,oy1,oz1), addVertex(ix1,iy1,iz1), addVertex(ix0,iy0,iz0));
+      // back face (z=0, against brick body)
+      addQuad(addVertex(ox1,oy1,0), addVertex(ix1,iy1,0), addVertex(ix0,iy0,0), addVertex(ox0,oy0,0));
     }
-
-  // ── FRONT SHELL: inner surface (+z) ───────────────────────────
-  const iF = [];
-  for (let j = 0; j <= VSEGS; j++) {
-    const y = py0+(py1-py0)*j/VSEGS, row = [];
-    for (let i = 0; i <= SEGS; i++) {
-      const x = px0+(px1-px0)*i/SEGS;
-      row.push(addVertex(x, y, iSZ(x, y)));
-    }
-    iF.push(row);
+    // start cap (t=0)
+    { const ox=ex0, oy=ey0, ix=ex0+nx*wt, iy=ey0+ny*wt;
+      const oz=surfaceZ(ox,oy), iz=surfaceZ(ix,iy);
+      addQuad(addVertex(ox,oy,0), addVertex(ix,iy,0), addVertex(ix,iy,iz), addVertex(ox,oy,oz)); }
+    // end cap (t=1)
+    { const ox=ex1, oy=ey1, ix=ex1+nx*wt, iy=ey1+ny*wt;
+      const oz=surfaceZ(ox,oy), iz=surfaceZ(ix,iy);
+      addQuad(addVertex(ox,oy,oz), addVertex(ix,iy,iz), addVertex(ix,iy,0), addVertex(ox,oy,0)); }
   }
-  for (let j = 0; j < VSEGS; j++)
-    for (let i = 0; i < SEGS; i++) {
-      const a=iF[j][i],b=iF[j][i+1],c=iF[j+1][i+1],d=iF[j+1][i];
-      indices.push(a,b,c, a,c,d);   // +z ✓
-    }
 
-  // ── FRONT SHELL: 4 rims sealing outer↔inner ───────────────────
-  // top  +y: (iz−oz)*dx>0 ✓
-  for (let i=0;i<SEGS;i++) addQuad(oF[VSEGS][i],iF[VSEGS][i],iF[VSEGS][i+1],oF[VSEGS][i+1]);
-  // bottom −y: dx*(oz′−iz′)<0 ✓
-  for (let i=0;i<SEGS;i++) addQuad(oF[0][i],oF[0][i+1],iF[0][i+1],iF[0][i]);
-  // left  −x: dy*(oz0−iz0)<0 ✓
-  for (let j=0;j<VSEGS;j++) addQuad(oF[j+1][0],oF[j][0],iF[j][0],iF[j+1][0]);
-  // right +x: dy*(iz1−oz1)>0 ✓
-  for (let j=0;j<VSEGS;j++) addQuad(oF[j][SEGS],oF[j+1][SEGS],iF[j+1][SEGS],iF[j][SEGS]);
-
-  // ── LEFT WALL SLAB  x=[px0, px0+wt] ──────────────────────────
-  // Front face follows surfaceZ at x=px0 (outer) and x=px0+wt (inner)
-  for (let j = 0; j < VSEGS; j++) {
-    const y0=py0+(py1-py0)*j/VSEGS, y1=py0+(py1-py0)*(j+1)/VSEGS;
-    const oz0=surfaceZ(px0,y0),    oz1=surfaceZ(px0,y1);    // outer edge z
-    const iz0=surfaceZ(px0+wt,y0), iz1=surfaceZ(px0+wt,y1); // inner edge z
-    // outer face −x: i=dy*oz1<0 ✓
-    addQuad(addVertex(px0,y0,0),   addVertex(px0,y1,0),
-            addVertex(px0,y1,oz1), addVertex(px0,y0,oz0));
-    // inner face +x: i=−iz0*dy>0 ✓
-    addQuad(addVertex(px0+wt,y0,0),  addVertex(px0+wt,y0,iz0),
-            addVertex(px0+wt,y1,iz1),addVertex(px0+wt,y1,0));
-    // front edge: connects outer z to inner z
-    addQuad(addVertex(px0+wt,y0,iz0),addVertex(px0+wt,y1,iz1),
-            addVertex(px0,y1,oz1),   addVertex(px0,y0,oz0));
-    // back face +z: strip at z=0
-    addQuad(addVertex(px0,y0,0),   addVertex(px0+wt,y0,0),
-            addVertex(px0+wt,y1,0), addVertex(px0,y1,0));
+  for (let k=0; k<cpN; k++) {
+    if (k === openEdge) continue;
+    const [ex0, ey0] = cp[k], [ex1, ey1] = cp[(k+1)%cpN];
+    buildEdgeSlab(ex0, ey0, ex1, ey1);
   }
-  // bottom cap of left slab −y
-  { const oz=surfaceZ(px0,py0), iz=surfaceZ(px0+wt,py0);
-    addQuad(addVertex(px0+wt,py0,0),addVertex(px0,py0,0),
-            addVertex(px0,py0,oz),  addVertex(px0+wt,py0,iz)); }
-  // top cap of left slab +y
-  { const oz=surfaceZ(px0,py1), iz=surfaceZ(px0+wt,py1);
-    addQuad(addVertex(px0,py1,0),   addVertex(px0+wt,py1,0),
-            addVertex(px0+wt,py1,iz),addVertex(px0,py1,oz)); }
 
-  // ── RIGHT WALL SLAB  x=[px1−wt, px1] ─────────────────────────
-  for (let j = 0; j < VSEGS; j++) {
-    const y0=py0+(py1-py0)*j/VSEGS, y1=py0+(py1-py0)*(j+1)/VSEGS;
-    const oz0=surfaceZ(px1,y0),    oz1=surfaceZ(px1,y1);
-    const iz0=surfaceZ(px1-wt,y0), iz1=surfaceZ(px1-wt,y1);
-    // outer face +x: i=−oz0*dy>0 ✓
-    addQuad(addVertex(px1,y0,0),   addVertex(px1,y0,oz0),
-            addVertex(px1,y1,oz1), addVertex(px1,y1,0));
-    // inner face −x: i=dy*iz1<0 ✓
-    addQuad(addVertex(px1-wt,y0,0),  addVertex(px1-wt,y1,0),
-            addVertex(px1-wt,y1,iz1),addVertex(px1-wt,y0,iz0));
-    // front edge
-    addQuad(addVertex(px1,y0,oz0),   addVertex(px1,y1,oz1),
-            addVertex(px1-wt,y1,iz1),addVertex(px1-wt,y0,iz0));
-    // back face +z
-    addQuad(addVertex(px1-wt,y0,0),  addVertex(px1,y0,0),
-            addVertex(px1,y1,0),     addVertex(px1-wt,y1,0));
-  }
-  // bottom cap of right slab −y
-  { const oz=surfaceZ(px1,py0), iz=surfaceZ(px1-wt,py0);
-    addQuad(addVertex(px1,py0,0),   addVertex(px1-wt,py0,0),
-            addVertex(px1-wt,py0,iz),addVertex(px1,py0,oz)); }
-  // top cap of right slab +y
-  { const oz=surfaceZ(px1,py1), iz=surfaceZ(px1-wt,py1);
-    addQuad(addVertex(px1-wt,py1,0), addVertex(px1,py1,0),
-            addVertex(px1,py1,oz),   addVertex(px1-wt,py1,iz)); }
-
-  // ── FLOOR SLAB  y=[py0, py0+wt] ───────────────────────────────
-  for (let i = 0; i < SEGS; i++) {
-    const x0=px0+(px1-px0)*i/SEGS, x1=px0+(px1-px0)*(i+1)/SEGS;
-    const oz0=surfaceZ(x0,py0),    oz1=surfaceZ(x1,py0);
-    const iz0=surfaceZ(x0,py0+wt), iz1=surfaceZ(x1,py0+wt);
-    // outer bottom −y: j=dx*oz0<0 ✓
-    addQuad(addVertex(x1,py0,0),   addVertex(x0,py0,0),
-            addVertex(x0,py0,oz0), addVertex(x1,py0,oz1));
-    // inner top +y: j=−dx*iz1>0 ✓
-    addQuad(addVertex(x0,py0+wt,0),   addVertex(x1,py0+wt,0),
-            addVertex(x1,py0+wt,iz1), addVertex(x0,py0+wt,iz0));
-    // front edge −z: k=−wt*dx<0 ✓
-    addQuad(addVertex(x0,py0,oz0),    addVertex(x0,py0+wt,iz0),
-            addVertex(x1,py0+wt,iz1), addVertex(x1,py0,oz1));
-    // back face +z
-    addQuad(addVertex(x0,py0,0),   addVertex(x1,py0,0),
-            addVertex(x1,py0+wt,0),addVertex(x0,py0+wt,0));
-  }
-  // floor slab left end cap −x: i=wt*iz<0 ✓
-  { const oz=surfaceZ(px0,py0), iz=surfaceZ(px0,py0+wt);
-    addQuad(addVertex(px0,py0,0),    addVertex(px0,py0+wt,0),
-            addVertex(px0,py0+wt,iz),addVertex(px0,py0,oz)); }
-  // floor slab right end cap +x: i=−oz*wt>0 ✓
-  { const oz=surfaceZ(px1,py0), iz=surfaceZ(px1,py0+wt);
-    addQuad(addVertex(px1,py0,0),    addVertex(px1,py0,oz),
-            addVertex(px1,py0+wt,iz),addVertex(px1,py0+wt,0)); }
-
-  // TOP IS OPEN — plants go in here
+  // Plants enter through the open top (rectangle/hexagon) or front (triangle)
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
@@ -835,7 +830,7 @@ function rebuildMesh() {
 
   // Update info
   document.getElementById('status').textContent =
-    `${p.bW.toFixed(0)} × ${p.bD.toFixed(0)} × ${p.bH.toFixed(0)} mm · pocket ${p.pExt.toFixed(0)} mm deep`;
+    `${p.bW.toFixed(0)} × ${p.bD.toFixed(0)} × ${p.bH.toFixed(0)} mm · pocket ${p.pDepth.toFixed(0)} mm deep`;
 }
 
 function updateSliders() {
@@ -844,7 +839,7 @@ function updateSliders() {
   const bd  = parseFloat(document.getElementById('brickDepth').value);
   const nw  = parseInt(document.getElementById('waves').value);
   const amp = parseFloat(document.getElementById('amplitude').value);
-  const ext = parseFloat(document.getElementById('extrusion').value);
+  const ext = 0; // removed
   const sl  = parseInt(document.getElementById('slope').value);
   const sh  = parseInt(document.getElementById('shape').value);
   const wz  = parseInt(document.getElementById('wavyZone').value);
@@ -869,8 +864,7 @@ function updateSliders() {
   document.getElementById('val-brickDepth').textContent  = bd + ' mm';
   document.getElementById('val-waves').textContent     = nw;
   document.getElementById('val-amplitude').textContent = amp + ' mm';
-  document.getElementById('val-extrusion').textContent = ext + ' mm';
-  document.getElementById('val-pocketDepth').textContent = Math.min(bd - 9.5, ext).toFixed(0) + ' mm';
+  document.getElementById('val-pocketDepth').textContent = parseFloat(document.getElementById('pocketDepth').value).toFixed(0) + ' mm';
   document.getElementById('val-slope').textContent =
     sl === 0 ? '0% · vertical' : sl === 100 ? '100% · scooped' : sl + '%';
   document.getElementById('val-shape').textContent =
@@ -899,8 +893,16 @@ function updateSliders() {
   rebuildMesh();
 }
 
+document.querySelectorAll('.shape-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    rebuildMesh();
+  });
+});
+
 ['brickWidth','brickHeight','brickDepth',
- 'waves','amplitude','extrusion','slope','shape','wavyZone','flatSlope',
+ 'waves','amplitude','pocketDepth','slope','shape','wavyZone','flatSlope',
  'hAmp','hCycles','hCycleOffset','hSpacing','hOffset','hStart','hEnd',
  'vAmp','vCycles','vCycleOffset','vSpacing','vOffset','vStart','vEnd'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateSliders);
